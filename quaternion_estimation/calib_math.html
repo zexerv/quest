@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quaternion Calibration Mathematics for Multi-Sensor Arm Tracking</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .formula {
+            display: block;
+            margin: 20px 0;
+            text-align: center;
+            font-style: italic;
+        }
+        .note {
+            background-color: #e7f5fe;
+            border-left: 5px solid #2196f3;
+            padding: 10px;
+            margin: 15px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #2196f3;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: Consolas, Monaco, 'Courier New', monospace;
+        }
+        .algorithm {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <h1>Quaternion Calibration Mathematics for Multi-Sensor Arm Tracking</h1>
+    
+    <section>
+        <h2>1. Introduction</h2>
+        <p>This document presents the mathematical framework for calibrating multiple IMU sensors (gyroscopes and accelerometers) attached to an arm-hand system for motion tracking. The system consists of three sensors placed on the upper arm, lower arm, and hand, with the goal of estimating the orientation and position of each segment while conforming to a kinematic model with 7 degrees of freedom.</p>
+        
+        <p>The key challenge is determining the alignment between each sensor's coordinate system and the anatomical coordinate system of the arm segment it's attached to. This calibration process is essential for accurate motion tracking.</p>
+    </section>
+    
+    <section>
+        <h2>2. Coordinate Systems and Transformations</h2>
+        
+        <h3>2.1 Coordinate Systems</h3>
+        <p>We define the following coordinate systems:</p>
+        <ul>
+            <li>\(S_i\): Sensor coordinate system for sensor \(i\) (where \(i \in \{1, 2, 3\}\) for upper arm, lower arm, and hand)</li>
+            <li>\(A_i\): Anatomical coordinate system for segment \(i\)</li>
+            <li>\(W\): World (global) coordinate system</li>
+        </ul>
+        
+        <h3>2.2 Quaternion Representation</h3>
+        <p>We use quaternions to represent rotations between coordinate systems. A quaternion \(q\) is defined as:</p>
+        
+        <div class="formula">
+            \[
+            q = w + xi + yj + zk
+            \]
+        </div>
+        
+        <p>where \(w\) is the scalar part, and \(x\), \(y\), \(z\) form the vector part.</p>
+        
+        <h3>2.3 Calibration Problem Statement</h3>
+        <p>For each sensor \(i\), we need to find a calibration quaternion \(q_{cal,i}\) that transforms from sensor coordinates to anatomical coordinates:</p>
+        
+        <div class="formula">
+            \[
+            q_{A_i} = q_{cal,i} \otimes q_{S_i} \otimes q_{cal,i}^{*}
+            \]
+        </div>
+        
+        <p>Where:</p>
+        <ul>
+            <li>\(q_{A_i}\) is the orientation in anatomical coordinates</li>
+            <li>\(q_{S_i}\) is the sensor-measured orientation</li>
+            <li>\(q_{cal,i}^{*}\) is the conjugate of the calibration quaternion</li>
+            <li>\(\otimes\) represents quaternion multiplication</li>
+        </ul>
+    </section>
+    
+    <section>
+        <h2>3. Structured Calibration Procedure</h2>
+        
+        <h3>3.1 Reference Position</h3>
+        <p>We define a reference position where all joint angles are known (e.g., arm hanging straight down). In this position:</p>
+        
+        <div class="formula">
+            \[
+            q_{A_i,ref} = \begin{bmatrix} 1 & 0 & 0 & 0 \end{bmatrix}^T
+            \]
+        </div>
+        
+        <h3>3.2 Single-Axis Rotations</h3>
+        <p>For each segment, we perform rotations around each anatomical axis:</p>
+        
+        <div class="formula">
+            \begin{align}
+            q_{x}(\theta) &= \begin{bmatrix} \cos(\theta/2) & \sin(\theta/2) & 0 & 0 \end{bmatrix}^T \\
+            q_{y}(\theta) &= \begin{bmatrix} \cos(\theta/2) & 0 & \sin(\theta/2) & 0 \end{bmatrix}^T \\
+            q_{z}(\theta) &= \begin{bmatrix} \cos(\theta/2) & 0 & 0 & \sin(\theta/2) \end{bmatrix}^T
+            \end{align}
+        </div>
+        
+        <p>For each axis rotation, we record the sensor quaternion \(q_{S_i}\) and the known anatomical quaternion \(q_{A_i}\).</p>
+        
+        <h3>3.3 Finding the Calibration Quaternion</h3>
+        <p>Given a set of \(N\) paired measurements \(\{(q_{S_i,j}, q_{A_i,j})\}_{j=1}^N\), we find the calibration quaternion \(q_{cal,i}\) that minimizes:</p>
+        
+        <div class="formula">
+            \[
+            E = \sum_{j=1}^N \|q_{A_i,j} - (q_{cal,i} \otimes q_{S_i,j} \otimes q_{cal,i}^{*})\|^2
+            \]
+        </div>
+        
+        <p>This is a non-linear optimization problem that can be solved using methods like gradient descent or more specialized quaternion averaging techniques.</p>
+    </section>
+    
+    <section>
+        <h2>4. Sensor-to-Segment Alignment Algorithm</h2>
+        
+        <div class="algorithm">
+            <h3>Algorithm: Sensor-to-Segment Calibration</h3>
+            <ol>
+                <li><strong>Initialize:</strong> Have the user assume the reference position</li>
+                <li><strong>Record reference:</strong> Record sensor quaternion \(q_{S_i,ref}\)</li>
+                <li><strong>For each anatomical axis:</strong>
+                    <ol>
+                        <li>Guide the user to rotate around only this axis to angle \(\theta_{max}\)</li>
+                        <li>Record sensor quaternions during this motion: \(q_{S_i,axis}(t)\)</li>
+                        <li>Calculate expected anatomical quaternions: \(q_{A_i,axis}(t)\)</li>
+                    </ol>
+                </li>
+                <li><strong>Formulate optimization problem:</strong> Minimize error between transformed sensor quaternions and expected anatomical quaternions</li>
+                <li><strong>Solve for \(q_{cal,i}\)</strong></li>
+            </ol>
+        </div>
+        
+        <div class="note">
+            <p><strong>Note:</strong> This procedure needs to be performed for each segment (upper arm, lower arm, hand) sequentially, starting from the most proximal segment (upper arm).</p>
+        </div>
+    </section>
+    
+    <section>
+        <h2>5. Mathematical Optimization Methods</h2>
+        
+        <h3>5.1 Quaternion Averaging</h3>
+        <p>For each pair of measured sensor quaternion \(q_{S_i,j}\) and known anatomical quaternion \(q_{A_i,j}\), we can compute a candidate calibration quaternion:</p>
+        
+        <div class="formula">
+            \[
+            q_{cal,i,j} = q_{A_i,j} \otimes q_{S_i,j}^{*}
+            \]
+        </div>
+        
+        <p>We then average these candidates to get an initial estimate of \(q_{cal,i}\).</p>
+        
+        <h3>5.2 Gradient Descent Optimization</h3>
+        <p>To refine the calibration quaternion, we can use gradient descent with the following update rule:</p>
+        
+        <div class="formula">
+            \[
+            q_{cal,i}^{(k+1)} = q_{cal,i}^{(k)} - \alpha \nabla E(q_{cal,i}^{(k)})
+            \]
+        </div>
+        
+        <p>Where \(\alpha\) is the learning rate and \(\nabla E\) is the gradient of the error function with respect to the calibration quaternion.</p>
+        
+        <h3>5.3 Quaternion-specific Optimization</h3>
+        <p>Due to the unit-norm constraint of quaternions, standard optimization methods need modification. The update can be performed using:</p>
+        
+        <div class="formula">
+            \[
+            q_{cal,i}^{(k+1)} = \exp\left(\frac{\alpha \nabla E(q_{cal,i}^{(k)})}{2}\right) \otimes q_{cal,i}^{(k)}
+            \]
+        </div>
+        
+        <p>Where \(\exp(q)\) is the quaternion exponential.</p>
+    </section>
+    
+    <section>
+        <h2>6. Multi-Segment Integration</h2>
+        
+        <h3>6.1 Kinematic Chain Formulation</h3>
+        <p>After calibrating each segment individually, we need to integrate them into a complete kinematic chain. The orientation of segment \(i\) in the world frame is:</p>
+        
+        <div class="formula">
+            \[
+            q_{W,i} = q_{W,parent(i)} \otimes q_{joint,i}
+            \]
+        </div>
+        
+        <p>Where \(q_{joint,i}\) represents the relative rotation at joint \(i\), derived from the calibrated quaternions.</p>
+        
+        <h3>6.2 Joint Angle Extraction</h3>
+        <p>From the relative quaternion between segments, we can extract joint angles using:</p>
+        
+        <div class="formula">
+            \[
+            q_{rel,i} = q_{A_{i-1}}^{*} \otimes q_{A_i}
+            \]
+        </div>
+        
+        <p>To extract individual joint angles (e.g., flexion/extension, abduction/adduction), we convert this quaternion to Euler angles for the specific joint configuration.</p>
+    </section>
+    
+    <section>
+        <h2>7. Error Reduction Techniques</h2>
+        
+        <h3>7.1 Kinematic Constraints</h3>
+        <p>We incorporate joint angle limits into our estimation process:</p>
+        
+        <div class="formula">
+            \[
+            \theta_{constrained} = \min(\max(\theta, \theta_{min}), \theta_{max})
+            \]
+        </div>
+        
+        <h3>7.2 Complementary Filtering</h3>
+        <p>For each sensor, the quaternion is updated using a complementary filter that combines gyroscopic integration with accelerometer-based correction:</p>
+        
+        <div class="formula">
+            \[
+            q_{estimated} = \alpha (q_{gyro} \otimes q_{previous}) + (1-\alpha) q_{accel}
+            \]
+        </div>
+        
+        <p>Where \(\alpha\) is a weight parameter (typically 0.98).</p>
+        
+        <h3>7.3 Global Optimization</h3>
+        <p>For reducing accumulated errors, we formulate a global optimization problem:</p>
+        
+        <div class="formula">
+            \[
+            \min_{\{q_{A_i}\}} \sum_{i=1}^3 \|q_{A_i} - (q_{cal,i} \otimes q_{S_i} \otimes q_{cal,i}^{*})\|^2 + \lambda \sum_{i=2}^3 \|q_{rel,i} - q_{model,i}\|^2
+            \]
+        </div>
+        
+        <p>Where \(q_{model,i}\) is the expected relative quaternion based on the kinematic model, and \(\lambda\) is a regularization parameter balancing sensor measurements with kinematic constraints.</p>
+    </section>
+    
+    <section>
+        <h2>8. Real-time Implementation</h2>
+        
+        <h3>8.1 Sensor Fusion Algorithm</h3>
+        <p>For each sensor update:</p>
+        
+        <div class="algorithm">
+            <ol>
+                <li>Read accelerometer and gyroscope data</li>
+                <li>Update sensor quaternion \(q_{S_i}\) using complementary filtering</li>
+                <li>Transform to anatomical frame: \(q_{A_i} = q_{cal,i} \otimes q_{S_i} \otimes q_{cal,i}^{*}\)</li>
+                <li>Calculate joint angles and relative orientations</li>
+                <li>Apply kinematic constraints</li>
+                <li>Update global pose estimation</li>
+            </ol>
+        </div>
+        
+        <h3>8.2 Drift Compensation</h3>
+        <p>To combat gyroscope drift over time, we can periodically:</p>
+        <ul>
+            <li>Detect stationary periods (low acceleration variance)</li>
+            <li>Use accelerometer data to correct drift in roll and pitch (not yaw)</li>
+            <li>Apply soft kinematic constraints to limit physically impossible configurations</li>
+        </ul>
+    </section>
+    
+    <section>
+        <h2>9. Evaluation Metrics</h2>
+        
+        <h3>9.1 Calibration Quality</h3>
+        <p>To evaluate calibration quality, we compute:</p>
+        
+        <div class="formula">
+            \[
+            E_{cal} = \frac{1}{N} \sum_{j=1}^N \|q_{A_i,j} - (q_{cal,i} \otimes q_{S_i,j} \otimes q_{cal,i}^{*})\|^2
+            \]
+        </div>
+        
+        <h3>9.2 Tracking Accuracy</h3>
+        <p>During validation with known poses, we measure:</p>
+        
+        <div class="formula">
+            \[
+            E_{angle} = \frac{1}{M} \sum_{k=1}^M \|\theta_{estimated,k} - \theta_{reference,k}\|
+            \]
+        </div>
+        
+        <p>Where \(\theta_{estimated,k}\) are the estimated joint angles and \(\theta_{reference,k}\) are the reference angles.</p>
+    </section>
+    
+    <section>
+        <h2>10. Conclusion and Extensions</h2>
+        
+        <p>This mathematical framework provides a systematic approach for calibrating and integrating multiple IMU sensors in an arm-hand kinematic tracking system. The process addresses the challenges of sensor-to-segment alignment, multi-segment integration, and error reduction.</p>
+        
+        <p>Possible extensions include:</p>
+        <ul>
+            <li>Adaptive calibration that updates during use</li>
+            <li>Advanced filtering methods like Extended Kalman Filters</li>
+            <li>Machine learning approaches to improve accuracy</li>
+            <li>Integration with additional sensor types (e.g., magnetometers, visual)</li>
+        </ul>
+    </section>
+    
+    <footer style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; color: #777;">
+        <p>© 2025 - Quaternion Calibration for Multi-Sensor Arm Tracking</p>
+    </footer>
+</body>
+</html>
