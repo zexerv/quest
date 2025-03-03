@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quaternion Estimation Mathematics</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .math {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: "Computer Modern", serif;
+        }
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: Consolas, Monaco, monospace;
+        }
+        .formula {
+            display: block;
+            margin: 20px 0;
+            text-align: center;
+            font-style: italic;
+        }
+        .diagram {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+        }
+        .note {
+            background-color: #e7f5fe;
+            border-left: 5px solid #2196f3;
+            padding: 10px;
+            margin: 15px 0;
+        }
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <h1>Quaternion Estimation Mathematics</h1>
+    
+    <p>This document explains the mathematical principles behind quaternion-based orientation estimation using data from an MPU6050 sensor (accelerometer and gyroscope).</p>
+    
+    <h2>1. Introduction to Quaternions</h2>
+    
+    <p>Quaternions are a mathematical construct used to represent rotations in 3D space. A quaternion is defined as:</p>
+    
+    <div class="formula">
+        \[q = w + xi + yj + zk\]
+    </div>
+    
+    <p>Where:</p>
+    <ul>
+        <li>\(w\) is the scalar part</li>
+        <li>\(x\), \(y\), and \(z\) form the vector part</li>
+        <li>\(i\), \(j\), and \(k\) are the fundamental quaternion units</li>
+    </ul>
+    
+    <p>The fundamental quaternion units satisfy the following relationships:</p>
+    
+    <div class="formula">
+        \[i^2 = j^2 = k^2 = ijk = -1\]
+    </div>
+    
+    <p>Quaternions offer several advantages over other rotation representations (like Euler angles or rotation matrices):</p>
+    <ul>
+        <li>Avoidance of gimbal lock</li>
+        <li>Efficient composition of rotations</li>
+        <li>Smoother interpolation</li>
+        <li>Numerical stability</li>
+    </ul>
+
+    <h2>2. Quaternion Representation of Orientation</h2>
+    
+    <p>A unit quaternion (magnitude = 1) can represent a rotation in 3D space. If we denote a rotation of angle \(\theta\) around an axis \(\vec{v} = [v_x, v_y, v_z]\) (where \(\vec{v}\) is a unit vector), the corresponding quaternion is:</p>
+    
+    <div class="formula">
+        \[q = \cos(\frac{\theta}{2}) + \sin(\frac{\theta}{2})(v_x i + v_y j + v_z k)\]
+    </div>
+    
+    <p>Or in component form:</p>
+    
+    <div class="formula">
+        \begin{align}
+        w &= \cos(\frac{\theta}{2}) \\
+        x &= v_x \sin(\frac{\theta}{2}) \\
+        y &= v_y \sin(\frac{\theta}{2}) \\
+        z &= v_z \sin(\frac{\theta}{2})
+        \end{align}
+    </div>
+
+    <h2>3. Quaternion Mathematics</h2>
+    
+    <h3>3.1 Quaternion Multiplication</h3>
+    
+    <p>The product of two quaternions \(p = p_w + p_x i + p_y j + p_z k\) and \(q = q_w + q_x i + q_y j + q_z k\) is:</p>
+    
+    <div class="formula">
+        \begin{align}
+        p \otimes q &= (p_w q_w - p_x q_x - p_y q_y - p_z q_z) \\
+        &+ (p_w q_x + p_x q_w + p_y q_z - p_z q_y)i \\
+        &+ (p_w q_y - p_x q_z + p_y q_w + p_z q_x)j \\
+        &+ (p_w q_z + p_x q_y - p_y q_x + p_z q_w)k
+        \end{align}
+    </div>
+    
+    <h3>3.2 Quaternion Normalization</h3>
+    
+    <p>To ensure a quaternion represents a pure rotation, it must be normalized to unit length:</p>
+    
+    <div class="formula">
+        \[q_{normalized} = \frac{q}{\|q\|} = \frac{q}{\sqrt{w^2 + x^2 + y^2 + z^2}}\]
+    </div>
+    
+    <h3>3.3 Quaternion Conjugate and Inverse</h3>
+    
+    <p>The conjugate of a quaternion is:</p>
+    
+    <div class="formula">
+        \[q^* = w - xi - yj - zk\]
+    </div>
+    
+    <p>For a unit quaternion, the conjugate equals the inverse:</p>
+    
+    <div class="formula">
+        \[q^{-1} = q^*\]
+    </div>
+    
+    <h3>3.4 Rotating Vectors with Quaternions</h3>
+    
+    <p>To rotate a vector \(\vec{v}\) by a quaternion \(q\), we use:</p>
+    
+    <div class="formula">
+        \[\vec{v}' = q \otimes \vec{v} \otimes q^*\]
+    </div>
+    
+    <p>Where \(\vec{v}\) is treated as a quaternion with zero scalar part: \(0 + v_x i + v_y j + v_z k\).</p>
+
+    <h2>4. Gyroscope Integration</h2>
+    
+    <p>A gyroscope measures angular velocity \(\vec{\omega} = [\omega_x, \omega_y, \omega_z]\) in rad/s. To update a quaternion based on gyroscope measurements, we use the quaternion derivative formula:</p>
+    
+    <div class="formula">
+        \[\frac{dq}{dt} = \frac{1}{2} q \otimes \omega_q\]
+    </div>
+    
+    <p>Where \(\omega_q = 0 + \omega_x i + \omega_y j + \omega_z k\) is the angular velocity expressed as a quaternion.</p>
+    
+    <p>Expanding this for each component:</p>
+    
+    <div class="formula">
+        \begin{align}
+        \frac{dw}{dt} &= -\frac{1}{2}(x\omega_x + y\omega_y + z\omega_z) \\
+        \frac{dx}{dt} &= \frac{1}{2}(w\omega_x + y\omega_z - z\omega_y) \\
+        \frac{dy}{dt} &= \frac{1}{2}(w\omega_y + z\omega_x - x\omega_z) \\
+        \frac{dz}{dt} &= \frac{1}{2}(w\omega_z + x\omega_y - y\omega_x)
+        \end{align}
+    </div>
+    
+    <p>Using numerical integration (Euler method) with a time step \(\Delta t\):</p>
+    
+    <div class="formula">
+        \begin{align}
+        w_{t+\Delta t} &= w_t - \frac{\Delta t}{2}(x_t\omega_x + y_t\omega_y + z_t\omega_z) \\
+        x_{t+\Delta t} &= x_t + \frac{\Delta t}{2}(w_t\omega_x + y_t\omega_z - z_t\omega_y) \\
+        y_{t+\Delta t} &= y_t + \frac{\Delta t}{2}(w_t\omega_y + z_t\omega_x - x_t\omega_z) \\
+        z_{t+\Delta t} &= z_t + \frac{\Delta t}{2}(w_t\omega_z + x_t\omega_y - y_t\omega_x)
+        \end{align}
+    </div>
+
+    <div class="note">
+        <p>Note: Pure gyroscope integration suffers from drift over time due to noise and bias in the measurements. This is why we need to combine it with accelerometer data.</p>
+    </div>
+
+    <h2>5. Accelerometer for Gravity Reference</h2>
+    
+    <p>The accelerometer measures the sum of linear acceleration and gravity. When the sensor is relatively stationary, the accelerometer reading approximates the gravity vector (9.81 m/s² pointing downward in the world frame).</p>
+    
+    <p>We can use this gravity vector as an absolute reference to correct the drift in pitch and roll (but not yaw, since gravity has no horizontal component).</p>
+    
+    <h3>5.1 Extracting Gravity Direction</h3>
+    
+    <p>First, we normalize the accelerometer reading to get the gravity direction:</p>
+    
+    <div class="formula">
+        \[\vec{g}_{measured} = \frac{\vec{a}}{\|\vec{a}\|}\]
+    </div>
+    
+    <h3>5.2 Expected Gravity Direction</h3>
+    
+    <p>Based on our current quaternion orientation estimate, we can calculate the expected gravity direction in the sensor frame:</p>
+    
+    <div class="formula">
+        \[\vec{g}_{expected} = q^* \otimes \vec{g}_{world} \otimes q\]
+    </div>
+    
+    <p>Where \(\vec{g}_{world} = [0, 0, 1]\) is the gravity direction in the world frame (downward).</p>
+    
+    <p>This can be simplified to:</p>
+    
+    <div class="formula">
+        \begin{align}
+        g_x &= 2(xz - wy) \\
+        g_y &= 2(yz + wx) \\
+        g_z &= w^2 - x^2 - y^2 + z^2
+        \end{align}
+    </div>
+
+    <h2>6. Sensor Fusion Algorithm</h2>
+    
+    <p>Our sensor fusion algorithm combines gyroscope integration with accelerometer corrections using a complementary filter approach.</p>
+    
+    <h3>6.1 Error Calculation</h3>
+    
+    <p>We calculate the error between the measured and expected gravity directions using a cross product:</p>
+    
+    <div class="formula">
+        \[\vec{e} = \vec{g}_{measured} \times \vec{g}_{expected}\]
+    </div>
+    
+    <p>The cross product gives us both the axis and magnitude of the correction needed.</p>
+    
+    <h3>6.2 Gyroscope Correction</h3>
+    
+    <p>We apply the correction to the gyroscope data:</p>
+    
+    <div class="formula">
+        \[\vec{\omega}_{corrected} = \vec{\omega}_{measured} + K_p \cdot \vec{e}\]
+    </div>
+    
+    <p>Where \(K_p\) is a proportional gain factor (e.g., 0.1).</p>
+    
+    <h3>6.3 Complete Algorithm</h3>
+    
+    <p>The complete sensor fusion algorithm follows these steps:</p>
+    
+    <ol>
+        <li>Read accelerometer and gyroscope data</li>
+        <li>Normalize the accelerometer data to extract gravity direction</li>
+        <li>Calculate the expected gravity direction based on current quaternion</li>
+        <li>Compute the error using cross product</li>
+        <li>Apply the error correction to gyroscope data</li>
+        <li>Update the quaternion using the corrected gyroscope data</li>
+        <li>Normalize the quaternion</li>
+    </ol>
+    
+    <div class="note">
+        <p>This approach is similar to a simplified version of the Mahony filter, which is well-suited for low-cost IMUs like the MPU6050.</p>
+    </div>
+
+    <h2>7. Implementation Considerations</h2>
+    
+    <h3>7.1 Sampling Rate</h3>
+    
+    <p>The accuracy of integration depends on the sampling rate. Higher sampling rates reduce numerical errors in the integration process.</p>
+    
+    <h3>7.2 Calibration</h3>
+    
+    <p>Proper calibration of the MPU6050 is essential to remove bias from the gyroscope and accelerometer readings.</p>
+    
+    <h3>7.3 Dealing with Fast Movements</h3>
+    
+    <p>During fast movements, the accelerometer measures both gravity and linear acceleration. To handle this, we can:</p>
+    <ul>
+        <li>Reduce the weight of accelerometer data during high acceleration periods</li>
+        <li>Use the magnitude of the acceleration vector to detect motion and adjust the fusion algorithm accordingly</li>
+    </ul>
+    
+    <h3>7.4 Initial Orientation</h3>
+    
+    <p>The initial quaternion is typically set to identity (w=1, x=y=z=0), representing no rotation. However, a better approach is to calculate the initial orientation from the first few accelerometer readings.</p>
+
+    <h2>Conclusion</h2>
+    
+    <p>Quaternion-based orientation estimation using sensor fusion of gyroscope and accelerometer data provides a robust way to track the 3D orientation of an object. The algorithm balances the short-term accuracy of gyroscope integration with the long-term stability provided by the gravity reference from the accelerometer.</p>
+    
+    <p>This mathematical framework is particularly useful for applications like drone control, virtual reality tracking, robotics, and motion capture.</p>
+
+    <footer style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; color: #777;">
+        <p>© 2024 - Quaternion Estimation Mathematics Guide</p>
+    </footer>
+</body>
+</html>
